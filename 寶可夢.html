@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ 寶可夢捕手 · 簡單版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #0b1120 0%, #1a2639 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+        .game-wrapper {
+            background: #0f172ab3;
+            backdrop-filter: blur(4px);
+            border-radius: 2.5rem;
+            padding: 2rem 2rem 2rem 2rem;
+            box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.7), inset 0 0 0 1px #4f5b73;
+        }
+        canvas {
+            display: block;
+            width: 600px;
+            height: 400px;
+            border-radius: 28px;
+            box-shadow: inset 0 0 20px #00000055, 0 15px 25px #00000080;
+            cursor: none;
+            background: radial-gradient(circle at 50% 30%, #233155, #0c1222);
+        }
+        .stats-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.2rem;
+            padding: 0 0.8rem;
+            color: #e2e8ff;
+            font-weight: 600;
+            text-shadow: 0 2px 5px #00000080;
+        }
+        .stats {
+            display: flex;
+            gap: 2.5rem;
+            background: #1e2a44a0;
+            padding: 0.5rem 2rem;
+            border-radius: 60px;
+            backdrop-filter: blur(5px);
+            border: 1px solid #5d7bb3;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+        }
+        .stats span {
+            color: #ffecaa;
+            font-weight: 700;
+            margin-left: 0.6rem;
+            background: #0b1424;
+            padding: 0.1rem 1rem;
+            border-radius: 40px;
+            border: 1px solid #b9c9ff;
+        }
+        .restart-btn {
+            background: #2b3f6e;
+            border: none;
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding: 0.6rem 2rem;
+            border-radius: 50px;
+            box-shadow: 0 6px 0 #0f1a2f, 0 8px 14px #00000070;
+            cursor: pointer;
+            transition: 0.07s ease;
+            border: 1px solid #7b97d4;
+            letter-spacing: 1px;
+        }
+        .restart-btn:hover {
+            background: #365799;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #0f1a2f, 0 12px 20px #00000070;
+        }
+        .restart-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #0f1a2f, 0 8px 14px #00000070;
+        }
+        .hint {
+            color: #a1b9e6;
+            margin-top: 0.7rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 400;
+            background: #00000040;
+            padding: 0.3rem;
+            border-radius: 50px;
+            border: 1px dashed #5f7bb0;
+        }
+        .hint kbd {
+            background: #273c64;
+            border-radius: 6px;
+            padding: 0.2rem 0.8rem;
+            color: #ffecaa;
+            font-weight: 700;
+            margin: 0 4px;
+            border: 1px solid #95adde;
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <div class="stats-panel">
+        <div class="stats">
+            🏆 分數 <span id="scoreDisplay">0</span>
+        </div>
+        <div class="stats">
+            ❤️ 生命 <span id="livesDisplay">5</span>
+        </div>
+        <button class="restart-btn" id="restartButton">↺ 重新開始</button>
+    </div>
+    <div class="hint">
+        <kbd>←</kbd> <kbd>→</kbd> 移動接板    |    <kbd>A</kbd> <kbd>D</kbd> 也行    |    ✨ 精靈球變簡單囉
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ----- 畫布與設定 -----
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = 600, height = 400;
+
+        // ----- 遊戲參數 (難度調低 ✨) -----
+        const PADDLE_WIDTH = 120;            // 接板加寬，更好接
+        const PADDLE_HEIGHT = 14;
+        const PADDLE_Y = height - 40;
+        const STAR_RADIUS = 11;               // 精靈球稍微放大 (原本9)
+        const STAR_SPEED = 1.6;                // 速度變慢 (原本2.4)
+        const SPAWN_CHANCE = 0.018;            // 生成頻率降低 (原本0.032)
+
+        // ----- 狀態變量 -----
+        let paddleX = (width - PADDLE_WIDTH) / 2;
+        let stars = [];                         // 精靈球陣列
+        let score = 0;
+        let lives = 5;                           // 初始生命增加為5
+        let gameActive = true;
+        let animationFrameId = null;
+
+        // ----- 按鍵標誌 -----
+        let leftPressed = false;
+        let rightPressed = false;
+
+        // ----- UI 元素 -----
+        const scoreSpan = document.getElementById('scoreDisplay');
+        const livesSpan = document.getElementById('livesDisplay');
+        const restartBtn = document.getElementById('restartButton');
+
+        // ----- 更新計分板 -----
+        function updateUI() {
+            scoreSpan.textContent = score;
+            livesSpan.textContent = lives;
+        }
+
+        // ----- 重置遊戲 -----
+        function restartGame() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            paddleX = (width - PADDLE_WIDTH) / 2;
+            stars = [];
+            score = 0;
+            lives = 5;                           // 重置為5命
+            gameActive = true;
+            leftPressed = false;
+            rightPressed = false;
+
+            updateUI();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // ----- 碰撞檢測：圓形 vs 矩形 -----
+        function isStarCollidingWithPaddle(starX, starY, radius, rectX, rectY, rectW, rectH) {
+            const closestX = Math.max(rectX, Math.min(starX, rectX + rectW));
+            const closestY = Math.max(rectY, Math.min(starY, rectY + rectH));
+            const dx = starX - closestX;
+            const dy = starY - closestY;
+            return (dx * dx + dy * dy) < radius * radius;
+        }
+
+        // ----- 遊戲更新邏輯 -----
+        function updateGame() {
+            // 1. 移動接板
+            const MOVE_STEP = 7;
+            if (leftPressed) {
+                paddleX = Math.max(0, paddleX - MOVE_STEP);
+            }
+            if (rightPressed) {
+                paddleX = Math.min(width - PADDLE_WIDTH, paddleX + MOVE_STEP);
+            }
+
+            // 2. 隨機生成新的精靈球 (頂部)
+            if (Math.random() < SPAWN_CHANCE) {
+                const randX = Math.random() * (width - 2 * STAR_RADIUS) + STAR_RADIUS;
+                stars.push({ x: randX, y: STAR_RADIUS });
+            }
+
+            // 3. 更新位置
+            for (let s of stars) {
+                s.y += STAR_SPEED;
+            }
+
+            // 4. 碰撞檢測 + 邊界移除
+            let remainingStars = [];
+            let lostLifeCount = 0;
+            for (let s of stars) {
+                if (gameActive) {
+                    if (isStarCollidingWithPaddle(s.x, s.y, STAR_RADIUS, paddleX, PADDLE_Y, PADDLE_WIDTH, PADDLE_HEIGHT)) {
+                        score += 1;
+                        updateUI();
+                        continue;   // 接住，消失
+                    }
+                }
+
+                if (s.y + STAR_RADIUS >= height) {
+                    if (gameActive) {
+                        lostLifeCount++;
+                    }
+                    continue;       // 出界，消失
+                }
+
+                remainingStars.push(s);
+            }
+            stars = remainingStars;
+
+            if (gameActive && lostLifeCount > 0) {
+                lives = Math.max(0, lives - lostLifeCount);
+                updateUI();
+                if (lives <= 0) {
+                    gameActive = false;
+                }
+            }
+        }
+
+        // ----- 繪製一個精靈球 (寶可夢圖案) -----
+        function drawPokeball(x, y, r) {
+            // --- 先繪製外陰影 (光暈) 讓球浮起來 ---
+            ctx.shadowColor = '#f9e572';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = 'rgba(255,255,240,0.02)'; // 幾乎透明，只為陰影
+            ctx.beginPath();
+            ctx.arc(x, y, r+1, 0, Math.PI*2);
+            ctx.fill();
+
+            // 關閉陰影，開始繪製精靈球本體 (避免陰影亂染)
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+
+            // --- 繪製黑色外框 (讓邊緣銳利) ---
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#2d2d2d';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // --- 上半球 (紅色) ---
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.clip();  // 限制繪製區域為圓形
+
+            // 紅色上半
+            ctx.fillStyle = '#e33535';  // 寶可夢經典紅
+            ctx.fillRect(x - r, y - r, 2 * r, r);
+
+            // 白色下半
+            ctx.fillStyle = '#f8f8f8';
+            ctx.fillRect(x - r, y, 2 * r, r);
+            ctx.restore();
+
+            // --- 黑色中線 (中心線) ---
+            ctx.beginPath();
+            ctx.moveTo(x - r + 2, y);
+            ctx.lineTo(x + r - 2, y);
+            ctx.strokeStyle = '#2f2f2f';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // --- 中心按鈕 (黑色圓+小白點) ---
+            ctx.beginPath();
+            ctx.arc(x, y, r * 0.22, 0, 2 * Math.PI);
+            ctx.fillStyle = '#3c3c3c';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, r * 0.1, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fill();
+
+            // --- 加一點高光 (左上角小白點) ---
+            ctx.beginPath();
+            ctx.arc(x - 3, y - 4, 2, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fffbf0';
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
+        // ----- 繪製整個畫面 -----
+        function drawScene() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 背景星光 (保留原本氣氛)
+            ctx.fillStyle = "#e9f2ff66";
+            for (let i = 0; i < 40; i++) {
+                ctx.beginPath();
+                ctx.arc( (i * 23) % width, (i * 13) % height, 1.2, 0, Math.PI*2);
+                ctx.fillStyle = "#fef9d7aa";
+                ctx.fill();
+            }
+
+            // ----- 繪製所有精靈球 (取代原本星星) -----
+            for (let s of stars) {
+                drawPokeball(s.x, s.y, STAR_RADIUS);
+            }
+
+            // ----- 繪製接板 (保留原金屬質感) -----
+            ctx.shadowColor = '#b0d0ff';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#3459a4';
+            ctx.beginPath();
+            ctx.roundRect(paddleX, PADDLE_Y, PADDLE_WIDTH, PADDLE_HEIGHT, 10);
+            ctx.fill();
+
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = '#c0e0ff';
+            const gradPaddle = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_HEIGHT);
+            gradPaddle.addColorStop(0, '#6d91d4');
+            gradPaddle.addColorStop(1, '#26457c');
+            ctx.fillStyle = gradPaddle;
+            ctx.beginPath();
+            ctx.roundRect(paddleX, PADDLE_Y, PADDLE_WIDTH, PADDLE_HEIGHT, 10);
+            ctx.fill();
+
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#ebf5ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(paddleX+1, PADDLE_Y+1, PADDLE_WIDTH-2, PADDLE_HEIGHT-3, 8);
+            ctx.strokeStyle = '#ffffff60';
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+
+            // ----- 遊戲結束遮罩 -----
+            if (!gameActive) {
+                ctx.fillStyle = '#0a0f1fcc';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.font = 'bold 42px "Segoe UI", "Roboto", system-ui, sans-serif';
+                ctx.fillStyle = '#f5d7b3';
+                ctx.shadowColor = '#cf9f4b';
+                ctx.shadowBlur = 20;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('✨ GAME OVER', width/2, height/2 - 20);
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillStyle = '#fffaeb';
+                ctx.fillText('按下方按鈕重新開始', width/2, height/2 + 35);
+                ctx.shadowBlur = 0;
+                ctx.textAlign = 'left';
+            }
+
+            // 裝飾文字 (改為寶可夢主題)
+            ctx.font = '500 12px monospace';
+            ctx.fillStyle = '#a0b5e0';
+            ctx.fillText('POKéMON CATCHER', 18, 30);
+        }
+
+        // 工具: canvas roundRect
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.moveTo(x + r, y);
+            this.lineTo(x + w - r, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + r);
+            this.lineTo(x + w, y + h - r);
+            this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            this.lineTo(x + r, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - r);
+            this.lineTo(x, y + r);
+            this.quadraticCurveTo(x, y, x + r, y);
+            this.closePath();
+            return this;
+        };
+
+        // ----- 主遊戲迴圈 -----
+        function gameLoop() {
+            if (gameActive) {
+                updateGame();
+            }
+            drawScene();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // ----- 鍵盤事件 -----
+        function handleKeyDown(e) {
+            const key = e.key;
+            if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'd' || key === 'A' || key === 'D') {
+                e.preventDefault();
+            }
+
+            if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+                leftPressed = true;
+            }
+            if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+                rightPressed = true;
+            }
+
+            if (key === 'r' || key === 'R') {
+                restartGame();
+            }
+        }
+
+        function handleKeyUp(e) {
+            const key = e.key;
+            if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+                leftPressed = false;
+                e.preventDefault();
+            }
+            if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+                rightPressed = false;
+                e.preventDefault();
+            }
+        }
+
+        window.addEventListener('keydown', function(e) {
+            if (e.key.startsWith('Arrow')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        restartBtn.addEventListener('click', restartGame);
+        window.addEventListener('load', restartGame);  // 自動開始
+
+        window.addEventListener('beforeunload', function() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        });
+
+        window.addEventListener('blur', function() {
+            leftPressed = false;
+            rightPressed = false;
+        });
+
+        updateUI();  // 初始顯示5命
+    })();
+</script>
+</body>
+</html>
