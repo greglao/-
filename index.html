@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寶可夢數學對戰 · 20以內加減</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', system-ui, sans-serif;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #2b4b6f, #1e3a5f);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .game-container {
+            max-width: 750px;
+            width: 100%;
+            background: #f2e9d0;
+            border-radius: 48px;
+            padding: 30px 30px 40px;
+            box-shadow: 0 25px 35px rgba(0,0,0,0.6), inset 2px 2px 10px #fff9e6, inset -3px -3px 8px #b9a98b;
+            border: 4px solid #f5d7b3;
+        }
+        /* 對手區域 */
+        .opponent-area {
+            background: #e1d2b6;
+            border-radius: 60px;
+            padding: 25px 25px 20px;
+            border: 5px solid #a5826b;
+            box-shadow: inset 0 0 0 3px #fdf0d8, 0 8px 0 #7a5c45;
+        }
+        .opponent-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: #b89e87;
+            padding: 12px 25px;
+            border-radius: 40px;
+            border: 3px solid #ecdbbd;
+            box-shadow: inset 0 2px 5px #937b64;
+        }
+        .opponent-emoji {
+            font-size: 64px;
+            background: #f5e7ce;
+            border-radius: 50%;
+            padding: 10px;
+            box-shadow: 0 6px 0 #7b5f4b, 0 8px 12px black;
+            line-height: 1;
+        }
+        .opponent-name {
+            font-size: 36px;
+            font-weight: 800;
+            color: #2d1f12;
+            text-shadow: 2px 2px 0 #e9dac0;
+            flex: 1;
+        }
+        .hp-bar-container {
+            background: #2e1c12;
+            border-radius: 40px;
+            padding: 5px 10px;
+            border: 3px solid #d8b282;
+            box-shadow: inset 0 2px 5px black;
+        }
+        .hp-bar {
+            width: 180px;
+            height: 28px;
+            background: #611f1f;
+            border-radius: 30px;
+            overflow: hidden;
+            border: 2px solid #ffbaba;
+        }
+        .hp-fill {
+            height: 100%;
+            width: 100%;
+            background: #4caf50;
+            background: linear-gradient(90deg, #58c45b, #2e9140);
+            border-radius: 30px;
+            transition: width 0.2s;
+        }
+        .hp-text {
+            color: white;
+            font-weight: bold;
+            margin-left: 15px;
+            font-size: 26px;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 0 black;
+        }
+        /* 問題區 */
+        .question-area {
+            background: #fcf3e0;
+            border-radius: 80px;
+            padding: 20px;
+            margin: 30px 0 25px;
+            border: 6px solid #c9af8b;
+            box-shadow: inset 0 0 0 4px #ffeec9, 0 8px 0 #8b6f50;
+            text-align: center;
+        }
+        .math-question {
+            font-size: 68px;
+            font-weight: 800;
+            color: #263f5c;
+            text-shadow: 4px 4px 0 #c9e2ff;
+            letter-spacing: 5px;
+            background: #e7d6b5;
+            border-radius: 70px;
+            padding: 15px 20px;
+            border: 4px solid #ab8b64;
+        }
+        /* 答案按鈕區 */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-top: 25px;
+        }
+        .answer-btn {
+            background: #ffeac2;
+            border: 5px solid #9c7e5e;
+            border-radius: 60px;
+            font-size: 48px;
+            font-weight: 700;
+            color: #1f3a4b;
+            padding: 15px 10px;
+            cursor: pointer;
+            box-shadow: 0 9px 0 #6b4f38, 0 10px 20px rgba(0,0,0,0.3);
+            transition: 0.05s linear;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .answer-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 3px 0 #6b4f38, 0 5px 12px rgba(0,0,0,0.3);
+        }
+        .answer-btn.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            filter: grayscale(0.3);
+        }
+        /* 收藏/切換區 */
+        .collection-area {
+            margin-top: 35px;
+            background: #e6cfb2;
+            border-radius: 50px;
+            padding: 20px 25px;
+            border: 5px solid #af895f;
+            box-shadow: inset 0 0 0 3px #faeacb, 0 8px 0 #7b5c3a;
+        }
+        .collection-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #392b1c;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #a88764;
+            display: inline-block;
+            padding: 6px 30px;
+            border-radius: 40px;
+            color: #fef5d6;
+            text-shadow: 2px 2px 0 #52412e;
+            letter-spacing: 1px;
+        }
+        .pokemon-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            min-height: 70px;
+        }
+        .pokemon-card {
+            background: #fbefda;
+            border: 4px solid #8b6d4b;
+            border-radius: 50px;
+            padding: 8px 22px 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 30px;
+            font-weight: 600;
+            color: #2e3f28;
+            box-shadow: 0 6px 0 #624e35;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .pokemon-card.active {
+            border: 5px solid #ffb347;
+            background: #fff1b5;
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px #f3c26b, 0 6px 0 #b37b3a;
+        }
+        .pokemon-card .wins {
+            background: #496e51;
+            color: white;
+            border-radius: 30px;
+            padding: 4px 16px;
+            font-size: 22px;
+            font-weight: 400;
+            margin-left: 5px;
+        }
+        .pokemon-emoji {
+            font-size: 44px;
+            filter: drop-shadow(2px 4px 2px #444);
+        }
+        /* 狀態文字 */
+        .battle-message {
+            font-size: 32px;
+            font-weight: 600;
+            color: #ec5565;
+            text-shadow: 2px 2px #ffe09c;
+            text-align: center;
+            margin: 15px 0 0;
+            min-height: 55px;
+        }
+        .next-battle-btn {
+            background: #fecb69;
+            border: 5px solid #aa6f3c;
+            border-radius: 40px;
+            font-size: 38px;
+            font-weight: bold;
+            padding: 10px 30px;
+            color: #2f2a1f;
+            box-shadow: 0 7px 0 #785f3a;
+            cursor: pointer;
+            display: inline-block;
+            transition: 0.05s;
+            border: none;
+            margin-top: 15px;
+        }
+        .next-battle-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #785f3a;
+        }
+        .hidden {
+            display: none;
+        }
+        .flex-center {
+            display: flex;
+            justify-content: center;
+        }
+        .hp-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 對手區 -->
+        <div class="opponent-area">
+            <div class="opponent-info">
+                <span class="opponent-emoji" id="opponentEmoji">🔥</span>
+                <span class="opponent-name" id="opponentName">小火龍</span>
+                <div class="hp-container">
+                    <div class="hp-bar-container">
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="opponentHpFill" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                    <span class="hp-text" id="opponentHpText">3/3</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 問題區 -->
+        <div class="question-area">
+            <div class="math-question" id="mathQuestion">5 + 3 = ?</div>
+        </div>
+
+        <!-- 答案按鈕 -->
+        <div class="answers-grid" id="answersContainer">
+            <button class="answer-btn" data-index="0">7</button>
+            <button class="answer-btn" data-index="1">8</button>
+            <button class="answer-btn" data-index="2">9</button>
+            <button class="answer-btn" data-index="3">10</button>
+        </div>
+
+        <!-- 戰鬥訊息 & 繼續按鈕 -->
+        <div class="battle-message" id="battleMessage"></div>
+        <div class="flex-center">
+            <button class="next-battle-btn hidden" id="nextBattleBtn">⚔️ 新對手 ⚔️</button>
+        </div>
+
+        <!-- 收藏 / 切換寶可夢 -->
+        <div class="collection-area">
+            <div class="collection-title">✨ 我的寶可夢 ✨</div>
+            <div class="pokemon-list" id="pokemonList"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ----- 寶可夢資料庫 (基礎&進化) -----
+            const POKEMON_BASE = [
+                { name: '小火龍', emoji: '🔥', evolveTo: '火恐龍' },
+                { name: '妙蛙種子', emoji: '🌱', evolveTo: '妙蛙草' },
+                { name: '傑尼龜', emoji: '🐢', evolveTo: '卡咪龜' },
+                { name: '皮卡丘', emoji: '⚡', evolveTo: '雷丘' },
+                { name: '伊布', emoji: '🌸', evolveTo: '水伊布' }  // 純趣味，小朋友喜歡
+            ];
+
+            // 對手只從基礎形態隨機 (可以重複)
+            // 玩家初始收藏：小火龍
+            let playerCollection = [
+                { baseName: '小火龍', name: '小火龍', emoji: '🔥', wins: 0, stage: 'base' }  // stage 用於顯示, 但進化後name會變
+            ];
+            let currentPokemonIndex = 0;  // 目前出戰的收藏索引
+
+            // 當前對手
+            let currentOpponent = null;    // { baseName, name, emoji, hp }
+
+            // 戰鬥狀態
+            let playerHp = 3;                // 當前出戰寶可夢的HP (每場重置3)
+            let opponentHp = 3;
+            let battleActive = true;          // 是否可答題 (戰鬥未結束)
+            let correctAnswer = 0;
+            let currentOptions = [];
+
+            // DOM 元素
+            const opponentEmojiEl = document.getElementById('opponentEmoji');
+            const opponentNameEl = document.getElementById('opponentName');
+            const opponentHpFill = document.getElementById('opponentHpFill');
+            const opponentHpText = document.getElementById('opponentHpText');
+            const mathQuestionEl = document.getElementById('mathQuestion');
+            const answerBtns = document.querySelectorAll('.answer-btn');
+            const answersContainer = document.getElementById('answersContainer');
+            const battleMessageEl = document.getElementById('battleMessage');
+            const nextBattleBtn = document.getElementById('nextBattleBtn');
+            const pokemonListEl = document.getElementById('pokemonList');
+
+            // 初始化
+            function initGame() {
+                generateNewOpponent();
+                resetBattleHp();
+                generateMathQuestion();
+                updateUI();
+                renderCollection();
+                battleActive = true;
+                battleMessageEl.textContent = '';
+                nextBattleBtn.classList.add('hidden');
+                enableAnswerButtons(true);
+            }
+
+            // 生成隨機對手 (從基礎庫選)
+            function generateNewOpponent() {
+                const randomBase = POKEMON_BASE[Math.floor(Math.random() * POKEMON_BASE.length)];
+                currentOpponent = {
+                    baseName: randomBase.name,
+                    name: randomBase.name,
+                    emoji: randomBase.emoji,
+                };
+            }
+
+            // 重置戰鬥HP
+            function resetBattleHp() {
+                playerHp = 3;
+                opponentHp = 3;
+            }
+
+            // 產生20以內加減法
+            function generateMathQuestion() {
+                const isAdd = Math.random() > 0.5;
+                let a, b, answer;
+                if (isAdd) {
+                    a = Math.floor(Math.random() * 11) + 1;  // 1~11
+                    b = Math.floor(Math.random() * (20 - a)) + 1; // 確保 a+b ≤20
+                    answer = a + b;
+                } else {
+                    a = Math.floor(Math.random() * 13) + 5;  // 5~17
+                    b = Math.floor(Math.random() * (a - 1)) + 1; // 至少1, 確保 a-b ≥1 且 ≤20
+                    answer = a - b;
+                }
+                correctAnswer = answer;
+
+                // 生成三個不同錯誤答案 (0~20且不等於正確，彼此不等)
+                let options = [correctAnswer];
+                while (options.length < 4) {
+                    let wrong = Math.floor(Math.random() * 21);  // 0~20
+                    if (!options.includes(wrong)) {
+                        options.push(wrong);
+                    }
+                }
+                // 打亂順序
+                for (let i = options.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [options[i], options[j]] = [options[j], options[i]];
+                }
+                currentOptions = options;
+
+                // 更新畫面
+                mathQuestionEl.textContent = `${a} ${isAdd ? '+' : '-'} ${b} = ?`;
+                for (let i = 0; i < answerBtns.length; i++) {
+                    answerBtns[i].textContent = options[i];
+                }
+            }
+
+            // 處理答案點擊
+            function handleAnswerClick(e) {
+                const btn = e.currentTarget;
+                if (!battleActive) return;
+
+                const selectedValue = parseInt(btn.textContent, 10);
+                const isCorrect = (selectedValue === correctAnswer);
+
+                // 扣血
+                if (isCorrect) {
+                    opponentHp -= 1;
+                } else {
+                    playerHp -= 1;
+                }
+
+                // 更新UI HP
+                updateHpBars();
+
+                // 檢查戰鬥是否結束
+                if (opponentHp <= 0) {
+                    // 勝利: 捕捉對手, 當前寶可夢勝場+1
+                    battleActive = false;
+                    enableAnswerButtons(false);
+                    // 捕捉對手 (加入收藏)
+                    captureOpponent();
+                    // 當前出戰寶可夢增加勝場，檢查進化
+                    const currentPkm = playerCollection[currentPokemonIndex];
+                    currentPkm.wins += 1;
+                    if (currentPkm.wins >= 2 && currentPkm.stage === 'base') {
+                        // 進化：找到對應的進化名稱和emoji (簡單對映)
+                        evolvePokemon(currentPkm);
+                    }
+                    battleMessageEl.textContent = '✨ 勝利！捕捉對手 ✨';
+                    nextBattleBtn.classList.remove('hidden');
+                    renderCollection();  // 更新收藏顯示
+                } else if (playerHp <= 0) {
+                    // 失敗
+                    battleActive = false;
+                    enableAnswerButtons(false);
+                    battleMessageEl.textContent = '😵 戰鬥失敗... 換個寶可夢吧';
+                    nextBattleBtn.classList.remove('hidden');
+                } else {
+                    // 戰鬥繼續，出新題
+                    generateMathQuestion();
+                }
+                // 若勝利且進化，已呼叫 renderCollection，但仍需更新當前顯示
+                updateCurrentPokemonDisplay();  // 確保當前寶可夢名字更新
+            }
+
+            // 捕捉對手：加入收藏 (若已存在同樣基礎寶可夢則不加？ 但可以重複收集，我們允許重複，但為了簡單，重複就增加一個新個體)
+            function captureOpponent() {
+                // 從 currentOpponent 建立新寶可夢 (基礎形態)
+                const base = POKEMON_BASE.find(p => p.name === currentOpponent.baseName);
+                if (!base) return;
+                const newPokemon = {
+                    baseName: base.name,
+                    name: base.name,
+                    emoji: base.emoji,
+                    wins: 0,
+                    stage: 'base'
+                };
+                playerCollection.push(newPokemon);
+            }
+
+            // 進化寶可夢 (修改當前pokemon物件)
+            function evolvePokemon(pkm) {
+                const base = POKEMON_BASE.find(p => p.name === pkm.baseName);
+                if (!base || !base.evolveTo) return;
+                pkm.name = base.evolveTo;
+                // 簡單換emoji (用進化後象徵)
+                const evolveEmojiMap = {
+                    '火恐龍': '🔥🐉',
+                    '妙蛙草': '🌿🌱',
+                    '卡咪龜': '🐢💧',
+                    '雷丘': '⚡🐭',
+                    '水伊布': '💧🌸'
+                };
+                pkm.emoji = evolveEmojiMap[pkm.name] || pkm.emoji + '✨';
+                pkm.stage = 'evolved';
+            }
+
+            // 更新HP條
+            function updateHpBars() {
+                const oppPercent = (opponentHp / 3) * 100;
+                opponentHpFill.style.width = oppPercent + '%';
+                opponentHpText.textContent = opponentHp + '/3';
+
+                // 玩家HP不在頂部顯示，但我們可顯示在卡片上？也可不用，因為玩家專注戰鬥
+                // 但可以簡單顯示在當前寶可夢卡片上 (收藏區)
+            }
+
+            // 更新對手UI
+            function updateOpponentUI() {
+                if (currentOpponent) {
+                    opponentEmojiEl.textContent = currentOpponent.emoji;
+                    opponentNameEl.textContent = currentOpponent.name;
+                }
+            }
+
+            // 啟用/禁用答案按鈕
+            function enableAnswerButtons(enabled) {
+                answerBtns.forEach(btn => {
+                    if (enabled) {
+                        btn.classList.remove('disabled');
+                    } else {
+                        btn.classList.add('disabled');
+                    }
+                });
+            }
+
+            // 整體UI刷新
+            function updateUI() {
+                updateOpponentUI();
+                updateHpBars();
+            }
+
+            // 渲染收藏列表並高亮當前
+            function renderCollection() {
+                let html = '';
+                playerCollection.forEach((pkm, idx) => {
+                    const activeClass = (idx === currentPokemonIndex) ? 'active' : '';
+                    html += `
+                        <div class="pokemon-card ${activeClass}" data-index="${idx}">
+                            <span class="pokemon-emoji">${pkm.emoji}</span>
+                            <span>${pkm.name}</span>
+                            <span class="wins">🏆${pkm.wins}</span>
+                        </div>
+                    `;
+                });
+                pokemonListEl.innerHTML = html;
+
+                // 為每個卡片添加點擊切換事件
+                document.querySelectorAll('.pokemon-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        const index = card.dataset.index;
+                        if (index === undefined) return;
+                        switchPokemon(parseInt(index));
+                    });
+                });
+            }
+
+            // 切換當前寶可夢
+            function switchPokemon(newIndex) {
+                if (newIndex === currentPokemonIndex) return;
+                currentPokemonIndex = newIndex;
+                // 重置戰鬥 (因為換了寶可夢)
+                resetBattleHp();
+                generateNewOpponent();
+                generateMathQuestion();
+                battleActive = true;
+                battleMessageEl.textContent = '';
+                nextBattleBtn.classList.add('hidden');
+                enableAnswerButtons(true);
+                updateUI();
+                renderCollection();  // 更新高亮
+            }
+
+            // 更新當前出戰寶可夢顯示 (名字變化時)
+            function updateCurrentPokemonDisplay() {
+                // 收藏列表已重新渲染，但對手區域沒變，所以不用特別做，只需要確保切換後顯示正確
+                // 沒有直接顯示玩家寶可夢在頂部，所以沒關係
+            }
+
+            // 下一場戰鬥 (點擊新對手)
+            function setupNextBattle() {
+                generateNewOpponent();
+                resetBattleHp();
+                generateMathQuestion();
+                battleActive = true;
+                battleMessageEl.textContent = '';
+                nextBattleBtn.classList.add('hidden');
+                enableAnswerButtons(true);
+                updateUI();
+                renderCollection();  // 確保收藏最新 (勝場更新)
+            }
+
+            // 綁定按鈕事件
+            answerBtns.forEach(btn => {
+                btn.addEventListener('click', handleAnswerClick);
+            });
+
+            nextBattleBtn.addEventListener('click', () => {
+                setupNextBattle();
+            });
+
+            // 啟動遊戲
+            initGame();
+
+            // 輔助: 隨機打亂 (已經用於選項)
+        })();
+    </script>
+</body>
+</html>
